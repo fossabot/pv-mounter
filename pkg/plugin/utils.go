@@ -1,7 +1,6 @@
 package plugin
 
 import (
-    "context"
     crand "crypto/rand"
     "crypto/x509"
     "encoding/pem"
