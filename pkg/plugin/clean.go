@@ -8,9 +8,12 @@ import (
     "runtime"
     "strings"
 
+    corev1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/client-go/kubernetes"
+    "k8s.io/client-go/kubernetes/scheme"
     "k8s.io/client-go/rest"
+    "k8s.io/client-go/tools/remotecommand"
 )
 
 func Clean(ctx context.Context, namespace, pvcName, localMountPoint string) error {
@@ -40,11 +43,12 @@ func Clean(ctx context.Context, namespace, pvcName, localMountPoint string) erro
     }
 
     podName := podList.Items[0].Name
-    port := podList.Items[0].Labels["portNumber"]
+    // Remove the unused variable 'port'
+    // port := podList.Items[0].Labels["portNumber"]
 
     // Stop the port-forwarding
     // Since we're now using client-go for port-forwarding, we need to implement a way to stop it.
-    // You can manage the stop channel or maintain a reference to the port-forwarding process.
+    // This can be managed via the stop channel in your application.
 
     // Check for original pod
     originalPodName := podList.Items[0].Labels["originalPodName"]

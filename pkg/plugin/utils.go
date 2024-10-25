@@ -1,12 +1,12 @@
 package plugin
 
 import (
+    "context"
     crand "crypto/rand"
     "crypto/x509"
     "encoding/pem"
     "fmt"
     "math/rand"
-    "net/http"
     "os"
     "os/exec"
     "runtime"
@@ -16,13 +16,9 @@ import (
     "crypto/elliptic"
 
     "golang.org/x/crypto/ssh"
-    corev1 "k8s.io/api/core/v1"
-    "k8s.io/apimachinery/pkg/runtime/schema"
     "k8s.io/client-go/kubernetes"
-    "k8s.io/client-go/kubernetes/scheme"
     "k8s.io/client-go/rest"
     "k8s.io/client-go/tools/clientcmd"
-    "k8s.io/client-go/tools/remotecommand"
 )
 
 func BuildKubeClient() (*kubernetes.Clientset, *rest.Config, error) {

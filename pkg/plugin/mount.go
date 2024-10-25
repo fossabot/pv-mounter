@@ -7,15 +7,17 @@ import (
     "fmt"
     "io/ioutil"
     "math/rand"
+    "net/http"
     "net/url"
     "os"
     "os/exec"
+    "strings"
     "time"
 
     corev1 "k8s.io/api/core/v1"
     "k8s.io/apimachinery/pkg/api/resource"
+    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/types"
-    "k8s.io/apimachinery/pkg/util/httpstream"
     "k8s.io/apimachinery/pkg/util/wait"
     "k8s.io/client-go/kubernetes"
     "k8s.io/client-go/rest"
@@ -95,13 +97,13 @@ func handleRWX(ctx context.Context, clientset *kubernetes.Clientset, config *res
     }
 
     stopCh := make(chan struct{}, 1)
+    // Defer closing the stopCh to ensure the port-forwarding stops when done
     defer close(stopCh)
 
     readyCh := make(chan struct{})
-    defer close(readyCh)
 
     // Set up port forwarding
-    pf, err := setupPortForwarding(ctx, config, namespace, podName, port, DefaultSSHPort, stopCh, readyCh)
+    _, err = setupPortForwarding(ctx, config, namespace, podName, port, DefaultSSHPort, stopCh, readyCh)
     if err != nil {
         return err
     }
@@ -140,10 +142,9 @@ func handleRWO(ctx context.Context, clientset *kubernetes.Clientset, config *res
     defer close(stopCh)
 
     readyCh := make(chan struct{})
-    defer close(readyCh)
 
     // Set up port forwarding
-    pf, err := setupPortForwarding(ctx, config, namespace, podName, port, DefaultSSHPort, stopCh, readyCh)
+    _, err = setupPortForwarding(ctx, config, namespace, podName, port, DefaultSSHPort, stopCh, readyCh)
     if err != nil {
         return err
     }
@@ -294,18 +295,23 @@ func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, names
 }
 
 func setupPortForwarding(ctx context.Context, config *rest.Config, namespace, podName string, localPort, podPort int, stopCh, readyCh chan struct{}) (*portforward.PortForwarder, error) {
-    // Create a roundtripper
+    // Create URLs and Dialer
     path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", namespace, podName)
-    hostIP := strings.TrimLeft(config.Host, "htps:/")
+    hostIP := strings.TrimPrefix(config.Host, "https://")
+    hostIP = strings.TrimPrefix(hostIP, "http://")
 
-    url := url.URL{Scheme: "https", Path: path, Host: hostIP}
+    url := &url.URL{
+        Scheme: "https",
+        Path:   path,
+        Host:   hostIP,
+    }
 
     transport, upgrader, err := spdy.RoundTripperFor(config)
     if err != nil {
         return nil, fmt.Errorf("failed to create round tripper: %v", err)
     }
 
-    dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", &url)
+    dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, "POST", url)
 
     ports := []string{fmt.Sprintf("%d:%d", localPort, podPort)}
     pf, err := portforward.New(dialer, ports, stopCh, readyCh, os.Stdout, os.Stderr)
